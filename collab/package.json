@@ -2,5 +2,24 @@
   "name": "collab",
   "private": true,
   "type": "module",
-  "description": "Hocuspocus WebSocket server for live editing (implemented in M3)"
+  "description": "Hocuspocus WebSocket server for live editing",
+  "dependencies": {
+    "@hocuspocus/server": "^4.7.0",
+    "jsonwebtoken": "^9.0.3",
+    "pg": "^8.23.0",
+    "y-protocols": "^1.0.7",
+    "yjs": "^13.6.33"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "node --watch --env-file=.env src/index.js",
+    "start": "node src/index.js",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@hocuspocus/provider": "^4.7.0",
+    "vitest": "^5.0.3"
+  }
 }
