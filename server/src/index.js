@@ -1,6 +1,6 @@
 import { createApp } from './app.js';
 
-for (const name of ['DATABASE_URL', 'JWT_SECRET']) {
+for (const name of ['DATABASE_URL', 'JWT_SECRET', 'CLIENT_ORIGIN']) {
   if (!process.env[name]) {
     console.error(`Missing required env var ${name}. See server/.env.example.`);
     process.exit(1);

@@ -1,10 +1,12 @@
 import express from 'express';
+import { cors } from './cors.js';
 import { authRouter } from './routes/auth.js';
 import { documentsRouter } from './routes/documents.js';
 
 // Builds the app without listening, so tests can start it on a random port.
-export function createApp() {
+export function createApp({ clientOrigin = process.env.CLIENT_ORIGIN } = {}) {
   const app = express();
+  app.use(cors(clientOrigin));
   app.use(express.json({ limit: '100kb' }));
 
   app.use('/api', authRouter);
