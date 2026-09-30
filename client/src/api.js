@@ -1,4 +1,5 @@
-const API_URL = import.meta.env.VITE_API_URL ?? '';
+// Trailing slashes are trimmed, so "https://api.example.com/" works too.
+const API_URL = (import.meta.env.VITE_API_URL ?? '').replace(/\/+$/, '');
 const TOKEN_KEY = 'token';
 
 // The token lives in localStorage. Any script on the page can read it (an XSS risk),
