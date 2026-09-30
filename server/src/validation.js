@@ -24,3 +24,20 @@ export function validateRegistration({ email, password, name }) {
   }
   return null;
 }
+
+export const TITLE_MAX = 200;
+
+export function validateTitle(title) {
+  if (typeof title !== 'string' || !title.trim() || title.length > TITLE_MAX) {
+    return `Title is required (max ${TITLE_MAX} characters)`;
+  }
+  return null;
+}
+
+// M2 ONLY. Checks the shape of Tiptap's JSON, not every node inside it: the content
+// is only ever loaded back into the editor, which rejects nodes it doesn't know.
+export function validateContent(content) {
+  const isObject = content !== null && typeof content === 'object' && !Array.isArray(content);
+  if (!isObject || content.type !== 'doc') return 'Content must be a Tiptap document';
+  return null;
+}
