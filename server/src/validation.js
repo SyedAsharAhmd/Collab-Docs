@@ -33,11 +33,3 @@ export function validateTitle(title) {
   }
   return null;
 }
-
-// M2 ONLY. Checks the shape of Tiptap's JSON, not every node inside it: the content
-// is only ever loaded back into the editor, which rejects nodes it doesn't know.
-export function validateContent(content) {
-  const isObject = content !== null && typeof content === 'object' && !Array.isArray(content);
-  if (!isObject || content.type !== 'doc') return 'Content must be a Tiptap document';
-  return null;
-}

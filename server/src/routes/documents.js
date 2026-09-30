@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { pool } from '../db.js';
 import { requireAuth } from '../auth/requireAuth.js';
 import { NOT_FOUND, requireDocumentRole } from '../auth/documentAccess.js';
-import { validateContent, validateTitle } from '../validation.js';
+import { validateTitle } from '../validation.js';
 
 const DEFAULT_TITLE = 'Untitled document';
 
@@ -53,10 +53,9 @@ documentsRouter.post('/', async (req, res) => {
   }
 });
 
-documentsRouter.get('/:id', requireDocumentRole('viewer'), async (req, res) => {
-  const { rows } = await pool.query('SELECT content FROM documents WHERE id = $1', [req.document.id]);
-  if (!rows[0]) return res.status(404).json({ error: NOT_FOUND });
-  res.json({ document: { ...req.document, content: rows[0].content } });
+// Metadata only. The content itself arrives over the collab WebSocket.
+documentsRouter.get('/:id', requireDocumentRole('viewer'), (req, res) => {
+  res.json({ document: req.document });
 });
 
 documentsRouter.patch('/:id', requireDocumentRole('editor'), async (req, res) => {
@@ -71,20 +70,6 @@ documentsRouter.patch('/:id', requireDocumentRole('editor'), async (req, res) =>
   // The document may have been deleted after the permission check ran.
   if (!rows[0]) return res.status(404).json({ error: NOT_FOUND });
   res.json({ document: { ...rows[0], role: req.document.role } });
-});
-
-// M2 ONLY: temporary save of the editor's JSON. M3 replaces this with Yjs sync.
-documentsRouter.put('/:id/content', requireDocumentRole('editor'), async (req, res) => {
-  const content = req.body?.content;
-  const error = validateContent(content);
-  if (error) return res.status(400).json({ error });
-
-  const { rowCount } = await pool.query(
-    'UPDATE documents SET content = $1, updated_at = now() WHERE id = $2',
-    [JSON.stringify(content), req.document.id],
-  );
-  if (!rowCount) return res.status(404).json({ error: NOT_FOUND });
-  res.status(204).end();
 });
 
 documentsRouter.delete('/:id', requireDocumentRole('owner'), async (req, res) => {

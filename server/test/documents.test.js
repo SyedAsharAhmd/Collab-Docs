@@ -15,10 +15,6 @@ async function registerUser(name) {
 const grant = (docId, userId, role) =>
   pool.query('INSERT INTO permissions (doc_id, user_id, role) VALUES ($1, $2, $3)', [docId, userId, role]);
 
-const sampleContent = {
-  type: 'doc',
-  content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Hello' }] }],
-};
 const MISSING_ID = '00000000-0000-4000-8000-000000000000';
 
 let owner, other, doc;
@@ -77,7 +73,7 @@ describe('GET /documents/:id', () => {
     await grant(doc.id, other.id, 'viewer');
     const res = await call('GET', `/documents/${doc.id}`, { token: other.token });
     expect(res.status).toBe(200);
-    expect(res.body.document).toMatchObject({ id: doc.id, title: 'Plan', role: 'viewer', content: null });
+    expect(res.body.document).toMatchObject({ id: doc.id, title: 'Plan', role: 'viewer' });
   });
 
   it('gives an identical 404 for "no access" and "does not exist"', async () => {
@@ -110,30 +106,6 @@ describe('PATCH /documents/:id (rename)', () => {
 
   it('rejects an invalid title', async () => {
     expect((await rename(owner.token, '')).status).toBe(400);
-  });
-});
-
-describe('PUT /documents/:id/content (temporary M2 save)', () => {
-  const save = (token, content = sampleContent) =>
-    call('PUT', `/documents/${doc.id}/content`, { token, body: { content } });
-
-  it('stores content that GET returns', async () => {
-    expect((await save(owner.token)).status).toBe(204);
-    const res = await call('GET', `/documents/${doc.id}`, { token: owner.token });
-    expect(res.body.document.content).toEqual(sampleContent);
-  });
-
-  it('gives a viewer 403 and a stranger 404, and changes nothing', async () => {
-    expect((await save(other.token)).status).toBe(404);
-    await grant(doc.id, other.id, 'viewer');
-    expect((await save(other.token)).status).toBe(403);
-    const { rows } = await pool.query('SELECT content FROM documents WHERE id = $1', [doc.id]);
-    expect(rows[0].content).toBeNull();
-  });
-
-  it('rejects content that is not a Tiptap document', async () => {
-    expect((await save(owner.token, 'hello')).status).toBe(400);
-    expect((await save(owner.token, { type: 'paragraph' })).status).toBe(400);
   });
 });
 
