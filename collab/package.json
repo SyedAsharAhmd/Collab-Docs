@@ -1,0 +1,6 @@
+{
+  "name": "collab",
+  "private": true,
+  "type": "module",
+  "description": "Hocuspocus WebSocket server for live editing (implemented in M3)"
+}
