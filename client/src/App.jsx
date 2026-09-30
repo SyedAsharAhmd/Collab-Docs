@@ -1,7 +1,8 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from './auth/AuthContext.jsx';
 import LoginPage from './pages/LoginPage.jsx';
-import EditorPage from './pages/EditorPage.jsx';
+import DocumentListPage from './pages/DocumentListPage.jsx';
+import DocumentPage from './pages/DocumentPage.jsx';
 
 // Hiding pages is a UX convenience, not security: the server checks every request.
 function RequireUser({ children }) {
@@ -23,7 +24,15 @@ export default function App() {
         path="/"
         element={
           <RequireUser>
-            <EditorPage />
+            <DocumentListPage />
+          </RequireUser>
+        }
+      />
+      <Route
+        path="/doc/:id"
+        element={
+          <RequireUser>
+            <DocumentPage />
           </RequireUser>
         }
       />

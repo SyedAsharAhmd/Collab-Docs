@@ -9,6 +9,10 @@ export const tokenStore = {
   clear: () => localStorage.removeItem(TOKEN_KEY),
 };
 
+// Fired when the server rejects our token (expired, or the user was deleted).
+// AuthContext listens and logs the user out.
+export const AUTH_EXPIRED_EVENT = 'auth:expired';
+
 export class ApiError extends Error {
   constructor(status, message) {
     super(message);
@@ -17,7 +21,8 @@ export class ApiError extends Error {
 }
 
 // fetch wrapper: adds the Bearer token and turns non-2xx responses into ApiError.
-export async function api(path, { method = 'GET', body } = {}) {
+// `keepalive` lets a request finish after the page is closed (used for a last save).
+export async function api(path, { method = 'GET', body, keepalive = false } = {}) {
   const headers = {};
   const token = tokenStore.get();
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -29,12 +34,20 @@ export async function api(path, { method = 'GET', body } = {}) {
       method,
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
+      keepalive,
     });
   } catch {
     throw new ApiError(0, 'Cannot reach the server');
   }
 
-  const data = await res.json().catch(() => null);
+  // 401 on a request that carried a token means the token is no longer accepted.
+  // (A 401 from a login attempt carries no token, so it doesn't log anyone out.)
+  if (res.status === 401 && token) {
+    tokenStore.clear();
+    window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
+  }
+
+  const data = res.status === 204 ? null : await res.json().catch(() => null);
   if (!res.ok) throw new ApiError(res.status, data?.error ?? 'Something went wrong');
   return data;
 }

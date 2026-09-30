@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { api, tokenStore } from '../api.js';
+import { AUTH_EXPIRED_EVENT, api, tokenStore } from '../api.js';
 
 const AuthContext = createContext(null);
 
@@ -22,6 +22,14 @@ export function AuthProvider({ children }) {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  // Any API call that gets a 401 has already cleared the token; drop the user too,
+  // and the route guard sends them to /login.
+  useEffect(() => {
+    const onExpired = () => setUser(null);
+    window.addEventListener(AUTH_EXPIRED_EVENT, onExpired);
+    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, onExpired);
   }, []);
 
   const authenticate = useCallback(async (path, body) => {

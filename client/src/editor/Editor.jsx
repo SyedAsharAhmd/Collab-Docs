@@ -4,15 +4,20 @@ import StarterKit from '@tiptap/starter-kit';
 // StarterKit bundles the nodes and marks we need (paragraphs, bold, italic, headings,
 // lists) plus undo/redo history. In M3 the Collaboration extension replaces the
 // built-in history, because undo must only undo your own edits, not other users'.
-export default function Editor() {
+//
+// `content` is only read when the editor is created. Mount a new <Editor> (with a
+// React key) to show a different document.
+export default function Editor({ content, editable = true, onChange }) {
   const editor = useEditor({
     extensions: [StarterKit],
-    content: '<p>Start typing…</p>',
+    content: content ?? '',
+    editable,
+    onUpdate: ({ editor }) => onChange?.(editor.getJSON()),
   });
 
   return (
     <div className="editor">
-      <Toolbar editor={editor} />
+      {editable && <Toolbar editor={editor} />}
       <EditorContent editor={editor} />
     </div>
   );
