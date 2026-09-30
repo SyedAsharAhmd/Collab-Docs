@@ -1,42 +1,9 @@
-import { readFile } from 'node:fs/promises';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import jwt from 'jsonwebtoken';
-import { createApp } from '../src/app.js';
 import { pool } from '../src/db.js';
+import { useTestServer } from './helpers.js';
 
-if (!process.env.DATABASE_URL) {
-  throw new Error('TEST_DATABASE_URL is not set. Add it to server/.env (see .env.example).');
-}
-
-let server;
-let base;
-
-beforeAll(async () => {
-  await pool.query(await readFile(new URL('../db/schema.sql', import.meta.url), 'utf8'));
-  server = createApp().listen(0);
-  base = `http://127.0.0.1:${server.address().port}/api`;
-});
-
-beforeEach(async () => {
-  await pool.query('TRUNCATE users CASCADE');
-});
-
-afterAll(async () => {
-  server?.close();
-  await pool.end();
-});
-
-async function call(method, path, { body, token } = {}) {
-  const headers = { 'Content-Type': 'application/json' };
-  if (token) headers.Authorization = `Bearer ${token}`;
-  const res = await fetch(base + path, {
-    method,
-    headers,
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  const text = await res.text();
-  return { status: res.status, text, body: text ? JSON.parse(text) : null };
-}
+const call = useTestServer();
 
 const ada = { email: 'Ada@Example.com', password: 'correct horse', name: 'Ada' };
 const register = (user = ada) => call('POST', '/register', { body: user });
