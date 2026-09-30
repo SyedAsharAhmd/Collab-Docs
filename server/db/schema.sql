@@ -27,3 +27,7 @@ CREATE TABLE IF NOT EXISTS permissions (
 
 -- The primary key covers lookups by doc_id; this covers "list my documents".
 CREATE INDEX IF NOT EXISTS permissions_user_id_idx ON permissions (user_id);
+
+-- M2 ONLY: temporary storage for the editor's JSON until real-time sync exists.
+-- M3 moves content into ydoc_state and drops this column.
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS content jsonb;
