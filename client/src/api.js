@@ -20,9 +20,15 @@ export class ApiError extends Error {
   }
 }
 
+// Call when a server rejects our token. Clears it, and the route guard sends the
+// user to /login.
+export function expireSession() {
+  tokenStore.clear();
+  window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
+}
+
 // fetch wrapper: adds the Bearer token and turns non-2xx responses into ApiError.
-// `keepalive` lets a request finish after the page is closed (used for a last save).
-export async function api(path, { method = 'GET', body, keepalive = false } = {}) {
+export async function api(path, { method = 'GET', body } = {}) {
   const headers = {};
   const token = tokenStore.get();
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -34,7 +40,6 @@ export async function api(path, { method = 'GET', body, keepalive = false } = {}
       method,
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
-      keepalive,
     });
   } catch {
     throw new ApiError(0, 'Cannot reach the server');
@@ -42,10 +47,7 @@ export async function api(path, { method = 'GET', body, keepalive = false } = {}
 
   // 401 on a request that carried a token means the token is no longer accepted.
   // (A 401 from a login attempt carries no token, so it doesn't log anyone out.)
-  if (res.status === 401 && token) {
-    tokenStore.clear();
-    window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
-  }
+  if (res.status === 401 && token) expireSession();
 
   const data = res.status === 204 ? null : await res.json().catch(() => null);
   if (!res.ok) throw new ApiError(res.status, data?.error ?? 'Something went wrong');

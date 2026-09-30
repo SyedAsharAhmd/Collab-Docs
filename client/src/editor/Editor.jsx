@@ -1,18 +1,22 @@
 import { EditorContent, useEditor, useEditorState } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+import Collaboration from '@tiptap/extension-collaboration';
 
-// StarterKit bundles the nodes and marks we need (paragraphs, bold, italic, headings,
-// lists) plus undo/redo history. In M3 the Collaboration extension replaces the
-// built-in history, because undo must only undo your own edits, not other users'.
+// The editor renders and edits a shared Y.Doc instead of holding its own content.
+// There is deliberately no `content` option: the Y.Doc is the only source of truth,
+// and setting initial content would insert it again on every client that opens it.
 //
-// `content` is only read when the editor is created. Mount a new <Editor> (with a
-// React key) to show a different document.
-export default function Editor({ content, editable = true, onChange }) {
+// `ydoc` is only read when the editor is created. Mount a new <Editor> (with a
+// React key) for a different Y.Doc.
+export default function Editor({ ydoc, editable = true }) {
   const editor = useEditor({
-    extensions: [StarterKit],
-    content: content ?? '',
+    extensions: [
+      // StarterKit's undo/redo is replaced by Collaboration's own, which undoes only
+      // your edits. The built-in one would also undo other people's changes.
+      StarterKit.configure({ undoRedo: false }),
+      Collaboration.configure({ document: ydoc }),
+    ],
     editable,
-    onUpdate: ({ editor }) => onChange?.(editor.getJSON()),
   });
 
   return (

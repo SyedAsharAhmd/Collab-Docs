@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../api.js';
 import TopBar from '../components/TopBar.jsx';
 import Editor from '../editor/Editor.jsx';
-import { useAutosave } from '../editor/useAutosave.js';
+import { useCollaboration } from '../editor/useCollaboration.js';
 
 export default function DocumentPage() {
   const { id } = useParams();
@@ -47,30 +47,41 @@ export default function DocumentPage() {
 }
 
 const STATUS_TEXT = {
-  saved: 'All changes saved',
-  unsaved: 'Unsaved changes',
-  saving: 'Saving…',
-  error: 'Save failed. Will retry on your next edit.',
+  connecting: 'Connecting…',
+  connected: 'Live',
+  disconnected: 'Offline. Reconnecting…',
 };
 
 function DocumentEditor({ doc }) {
-  // Viewers get a read-only editor. This is only UX: the server rejects their saves.
+  // Viewers get a read-only editor. This is only UX: the collab server marks their
+  // connection read-only and drops any update they send.
   const canEdit = doc.role !== 'viewer';
+  const { ydoc, status, deniedReason } = useCollaboration(doc.id);
 
-  const saveContent = useCallback(
-    (content, options) => api(`/documents/${doc.id}/content`, { method: 'PUT', body: { content }, ...options }),
-    [doc.id],
-  );
-  const { status, schedule } = useAutosave(saveContent);
+  if (deniedReason) {
+    return (
+      <>
+        <p className="error">
+          {deniedReason === 'permission-denied'
+            ? 'Document not found, or you no longer have access.'
+            : 'Could not open the document. Please try again later.'}
+        </p>
+        <Link to="/">Back to documents</Link>
+      </>
+    );
+  }
 
   return (
     <>
       <div className="doc-header">
         <Link to="/">← Documents</Link>
         <TitleInput doc={doc} disabled={!canEdit} />
-        <span className="muted">{canEdit ? STATUS_TEXT[status] : 'View only'}</span>
+        <span className="muted">
+          {STATUS_TEXT[status]}
+          {!canEdit && ' · View only'}
+        </span>
       </div>
-      <Editor content={doc.content} editable={canEdit} onChange={schedule} />
+      {ydoc && <Editor key={ydoc.guid} ydoc={ydoc} editable={canEdit} />}
     </>
   );
 }
