@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../api.js';
 import TopBar from '../components/TopBar.jsx';
+import ShareDialog from '../components/ShareDialog.jsx';
 import Editor from '../editor/Editor.jsx';
 import { useCollaboration } from '../editor/useCollaboration.js';
 
@@ -9,6 +10,9 @@ export default function DocumentPage() {
   const { id } = useParams();
   const [doc, setDoc] = useState(null);
   const [error, setError] = useState(null);
+  // Bumped when the owner changes our access, to reload the document with our new role.
+  const [reloads, setReloads] = useState(0);
+  const [accessChangedId, setAccessChangedId] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -20,22 +24,30 @@ export default function DocumentPage() {
     return () => {
       cancelled = true;
     };
+  }, [id, reloads]);
+
+  const reload = useCallback(() => {
+    setAccessChangedId(id);
+    setReloads((n) => n + 1);
   }, [id]);
 
   let body;
   if (error) {
-    // The server answers 404 for both "doesn't exist" and "no access", so the UI can't
-    // (and shouldn't) tell them apart either.
+    // The server answers 404 for both "doesn't exist" and "no access". After an access
+    // change we know which one it is, so we can say it plainly.
+    let message = error.message;
+    if (error.status === 404) message = accessChangedId === id ? 'Your access to this document was removed.' : 'Document not found.';
     body = (
       <>
-        <p className="error">{error.status === 404 ? 'Document not found.' : error.message}</p>
+        <p className="error">{message}</p>
         <Link to="/">Back to documents</Link>
       </>
     );
   } else if (!doc) {
     body = <p>Loading…</p>;
   } else {
-    body = <DocumentEditor key={doc.id} doc={doc} />;
+    // A new key after a reload remounts the editor, so it reconnects with the new role.
+    body = <DocumentEditor key={`${doc.id}:${reloads}`} doc={doc} onAccessChanged={reload} />;
   }
 
   return (
@@ -52,20 +64,23 @@ const STATUS_TEXT = {
   disconnected: 'Offline. Reconnecting…',
 };
 
-function DocumentEditor({ doc }) {
+const DENIED_TEXT = {
+  'permission-denied': 'Document not found, or you no longer have access.',
+  'document-deleted': 'This document was deleted.',
+};
+
+function DocumentEditor({ doc, onAccessChanged }) {
   // Viewers get a read-only editor. This is only UX: the collab server marks their
   // connection read-only and drops any update they send.
   const canEdit = doc.role !== 'viewer';
-  const { ydoc, status, deniedReason } = useCollaboration(doc.id);
+  const isOwner = doc.role === 'owner';
+  const { ydoc, status, deniedReason } = useCollaboration(doc.id, onAccessChanged);
+  const [sharing, setSharing] = useState(false);
 
   if (deniedReason) {
     return (
       <>
-        <p className="error">
-          {deniedReason === 'permission-denied'
-            ? 'Document not found, or you no longer have access.'
-            : 'Could not open the document. Please try again later.'}
-        </p>
+        <p className="error">{DENIED_TEXT[deniedReason] ?? 'Could not open the document. Please try again later.'}</p>
         <Link to="/">Back to documents</Link>
       </>
     );
@@ -76,12 +91,16 @@ function DocumentEditor({ doc }) {
       <div className="doc-header">
         <Link to="/">← Documents</Link>
         <TitleInput doc={doc} disabled={!canEdit} />
-        <span className="muted">
-          {STATUS_TEXT[status]}
-          {!canEdit && ' · View only'}
-        </span>
+        {!canEdit && <span className="badge">View only</span>}
+        <span className="muted">{STATUS_TEXT[status]}</span>
+        {isOwner && (
+          <button type="button" className="primary" onClick={() => setSharing(true)}>
+            Share
+          </button>
+        )}
       </div>
       {ydoc && <Editor key={ydoc.guid} ydoc={ydoc} editable={canEdit} />}
+      {sharing && <ShareDialog docId={doc.id} onClose={() => setSharing(false)} />}
     </>
   );
 }
