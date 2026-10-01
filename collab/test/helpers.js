@@ -46,20 +46,23 @@ export function destroyProviders() {
 }
 
 // Connects like a browser would. Resolves once the server has synced the document to
-// us, refused the connection, or `timeout` ms passed without either.
+// us, refused the connection, or `timeout` ms passed without either. `closeReasons`
+// collects the reason of every close the server sends later.
 export function connect(url, docId, token, { timeout = 3000 } = {}) {
   const ydoc = new Y.Doc();
+  const closeReasons = [];
   return new Promise((resolve) => {
     const provider = new HocuspocusProvider({
       url,
       name: docId,
       document: ydoc,
       token,
-      onSynced: () => resolve({ ok: true, ydoc, provider }),
-      onAuthenticationFailed: ({ reason }) => resolve({ ok: false, reason, ydoc, provider }),
+      onSynced: () => resolve({ ok: true, ydoc, provider, closeReasons }),
+      onAuthenticationFailed: ({ reason }) => resolve({ ok: false, reason, ydoc, provider, closeReasons }),
+      onClose: ({ event }) => closeReasons.push(event.reason),
     });
     openProviders.push(provider);
-    setTimeout(() => resolve({ ok: false, reason: 'timeout', ydoc, provider }), timeout);
+    setTimeout(() => resolve({ ok: false, reason: 'timeout', ydoc, provider, closeReasons }), timeout);
   });
 }
 
