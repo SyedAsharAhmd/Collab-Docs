@@ -1,83 +1,36 @@
-import { readFile } from 'node:fs/promises';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import jwt from 'jsonwebtoken';
-import * as Y from 'yjs';
-import { HocuspocusProvider } from '@hocuspocus/provider';
-import { createServer } from '../src/server.js';
 import { pool } from '../src/db.js';
-
-if (!process.env.DATABASE_URL) {
-  throw new Error('TEST_DATABASE_URL is not set. Add it to collab/.env (see .env.example).');
-}
+import {
+  applySchema,
+  connect as connectTo,
+  createDocument,
+  createUser,
+  destroyProviders,
+  grant,
+  startServer,
+  tokenFor,
+  waitFor,
+} from './helpers.js';
 
 let server;
 let url;
-const providers = [];
 
 beforeAll(async () => {
-  await pool.query(await readFile(new URL('../../server/db/schema.sql', import.meta.url), 'utf8'));
-  server = createServer({ port: 0, quiet: true, stopOnSignals: false });
-  await server.listen();
-  url = `ws://127.0.0.1:${server.address.port}`;
+  await applySchema();
+  ({ server, url } = await startServer());
 });
 
 beforeEach(() => pool.query('TRUNCATE users CASCADE'));
 
-afterEach(() => {
-  for (const provider of providers.splice(0)) provider.destroy();
-});
+afterEach(destroyProviders);
 
 afterAll(async () => {
   await server?.destroy();
   await pool.end();
 });
 
-async function createUser(name) {
-  const { rows } = await pool.query(
-    "INSERT INTO users (email, password_hash, name) VALUES ($1, 'not-a-real-hash', $2) RETURNING id",
-    [`${name}@example.com`, name],
-  );
-  return rows[0].id;
-}
-
-async function createDocument(ownerId) {
-  const { rows } = await pool.query('INSERT INTO documents (owner_id) VALUES ($1) RETURNING id', [ownerId]);
-  await grant(rows[0].id, ownerId, 'owner');
-  return rows[0].id;
-}
-
-const grant = (docId, userId, role) =>
-  pool.query('INSERT INTO permissions (doc_id, user_id, role) VALUES ($1, $2, $3)', [docId, userId, role]);
-
-const tokenFor = (userId, options = { expiresIn: '1h' }) =>
-  jwt.sign({ sub: userId }, process.env.JWT_SECRET, { algorithm: 'HS256', ...options });
-
-// Connects like a browser would. Resolves once the server has either synced the
-// document to us or refused the connection.
-function connect(docId, token) {
-  const ydoc = new Y.Doc();
-  return new Promise((resolve) => {
-    const provider = new HocuspocusProvider({
-      url,
-      name: docId,
-      document: ydoc,
-      token,
-      onSynced: () => resolve({ ok: true, ydoc, provider }),
-      onAuthenticationFailed: ({ reason }) => resolve({ ok: false, reason, ydoc, provider }),
-    });
-    providers.push(provider);
-  });
-}
-
-// Polls until `check` passes or the timeout expires.
-async function waitFor(check, timeout = 2000) {
-  const start = Date.now();
-  while (!check()) {
-    if (Date.now() - start > timeout) throw new Error('Timed out waiting for condition');
-    await new Promise((r) => setTimeout(r, 20));
-  }
-}
-
+const connect = (docId, token) => connectTo(url, docId, token);
 const serverText = (docId) => server.hocuspocus.documents.get(docId)?.getText('t').toString();
 
 let owner, other, docId;
