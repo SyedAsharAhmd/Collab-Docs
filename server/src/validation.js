@@ -25,6 +25,13 @@ export function validateRegistration({ email, password, name }) {
   return null;
 }
 
+// Roles an owner can give. 'owner' is only set when a document is created.
+export const SHAREABLE_ROLES = ['editor', 'viewer'];
+
+export function validateShareRole(role) {
+  return SHAREABLE_ROLES.includes(role) ? null : `Role must be one of: ${SHAREABLE_ROLES.join(', ')}`;
+}
+
 export const TITLE_MAX = 200;
 
 export function validateTitle(title) {

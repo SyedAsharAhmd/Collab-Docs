@@ -2,13 +2,16 @@ import { Router } from 'express';
 import { pool } from '../db.js';
 import { requireAuth } from '../auth/requireAuth.js';
 import { NOT_FOUND, requireDocumentRole } from '../auth/documentAccess.js';
+import { notifyAccessChanged } from '../accessEvents.js';
 import { validateTitle } from '../validation.js';
+import { sharingRouter } from './sharing.js';
 
 const DEFAULT_TITLE = 'Untitled document';
 
 export const documentsRouter = Router();
 
 documentsRouter.use(requireAuth);
+documentsRouter.use('/:id/permissions', sharingRouter);
 
 // Only documents the caller has a role on. The JOIN is the permission check.
 documentsRouter.get('/', async (req, res) => {
@@ -73,7 +76,19 @@ documentsRouter.patch('/:id', requireDocumentRole('editor'), async (req, res) =>
 });
 
 documentsRouter.delete('/:id', requireDocumentRole('owner'), async (req, res) => {
-  // Permissions rows go with it (ON DELETE CASCADE).
-  await pool.query('DELETE FROM documents WHERE id = $1', [req.document.id]);
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    // Permissions rows go with it (ON DELETE CASCADE).
+    await client.query('DELETE FROM documents WHERE id = $1', [req.document.id]);
+    // Close everyone's live connection; sent only if the delete commits.
+    await notifyAccessChanged(client, req.document.id);
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
   res.status(204).end();
 });
