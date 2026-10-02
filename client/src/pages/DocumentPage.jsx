@@ -36,7 +36,7 @@ export default function DocumentPage() {
     // The server answers 404 for both "doesn't exist" and "no access". After an access
     // change we know which one it is, so we can say it plainly.
     let message = error.message;
-    if (error.status === 404) message = accessChangedId === id ? 'Your access to this document was removed.' : 'Document not found.';
+    if (error.status === 404) message = accessChangedId === id ? 'Access removed. The owner no longer shares this document with you.' : 'Document not found.';
     body = (
       <>
         <p className="error">{message}</p>
@@ -66,7 +66,7 @@ const STATUS_TEXT = {
 
 const DENIED_TEXT = {
   'permission-denied': 'Document not found, or you no longer have access.',
-  'document-deleted': 'This document was deleted.',
+  'document-deleted': 'Document no longer exists. The owner deleted it.',
 };
 
 function DocumentEditor({ doc, onAccessChanged }) {
