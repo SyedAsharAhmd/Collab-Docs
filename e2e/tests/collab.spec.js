@@ -89,6 +89,50 @@ test('deleting a document tells everyone who has it open', async ({}, testInfo) 
   await expect(guestPage.getByText('Document no longer exists')).toBeVisible();
 });
 
+test('a session that expires mid-edit asks to log in again and keeps the offline edits', async ({ page }) => {
+  // Every WebSocket to the collab server passes through this route, so the test can
+  // cut the connection like a sleeping laptop would, and refuse reconnects while "offline".
+  let offline = false;
+  const sockets = [];
+  await page.routeWebSocket(/:1334/, (ws) => {
+    if (offline) return ws.close();
+    ws.connectToServer();
+    sockets.push(ws);
+  });
+
+  await signUp(page, 'Sleeper');
+  await createDocument(page);
+  await editor(page).click();
+  await page.keyboard.type('Typed before. ');
+
+  // The laptop sleeps: the login expires and the connection drops.
+  const userId = await page.evaluate(() => {
+    const payload = localStorage.getItem('token').split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(atob(payload)).sub;
+  });
+  const expired = signToken({ sub: userId, exp: Math.floor(Date.now() / 1000) - 60 });
+  await page.evaluate((token) => localStorage.setItem('token', token), expired);
+  offline = true;
+  sockets.forEach((ws) => ws.close());
+  await expect(page.getByText('Offline. Reconnecting…')).toBeVisible();
+  await page.keyboard.type('Typed offline.');
+
+  // The network comes back; the reconnect sends the expired token and is refused.
+  offline = false;
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toContainText('Session expired', { timeout: 20000 });
+  await expect(page).toHaveURL(/\/doc\//); // still on the document, not the login page
+  await dialog.getByLabel('Password').fill('password123');
+  await dialog.getByRole('button', { name: 'Log in' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expectLive(page);
+
+  // Proof the offline text reached the server: a fresh load shows it.
+  await page.reload();
+  await expectLive(page);
+  await expect(editor(page)).toContainText('Typed before. Typed offline.');
+});
+
 test('an expired session sends the user back to the login page', async ({ page }) => {
   const expired = signToken({ sub: '00000000-0000-4000-8000-000000000000', exp: Math.floor(Date.now() / 1000) - 60 });
   await page.goto('/login');
