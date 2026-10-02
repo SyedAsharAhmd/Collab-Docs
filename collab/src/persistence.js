@@ -18,10 +18,35 @@ export async function onLoadDocument({ documentName }) {
   return rows[0].ydoc_state ?? undefined;
 }
 
+// Waits between store attempts while the database is failing; the last delay repeats.
+let retryDelaysMs = [1000, 2000, 5000, 10000, 30000];
+
+// Lets tests use short delays.
+export function setStoreRetryDelays(delays) {
+  retryDelaysMs = delays;
+}
+
 // Runs 2 s after the last change (at most every 10 s during constant typing), when the
-// last user leaves, and on shutdown. If it throws, Hocuspocus logs the error and keeps
-// the document in memory so nothing is lost.
+// last user leaves, and on shutdown.
+//
+// If the database is down, it keeps retrying instead of failing: while this hook is
+// running, Hocuspocus keeps the document in memory, so the content is safe until a
+// store succeeds. Each attempt saves the latest state, including edits made meanwhile.
 export async function onStoreDocument({ documentName, document }) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await saveState(documentName, document);
+      if (attempt > 0) console.log(`Stored document ${documentName} after ${attempt} failed attempt(s)`);
+      return;
+    } catch (err) {
+      const delay = retryDelaysMs[Math.min(attempt, retryDelaysMs.length - 1)];
+      console.error(`Storing document ${documentName} failed; retrying in ${delay} ms:`, err.message);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+}
+
+async function saveState(documentName, document) {
   // The full state as one update: loading it into an empty Y.Doc recreates the document.
   const state = Y.encodeStateAsUpdate(document);
   await pool.query('UPDATE documents SET ydoc_state = $1, updated_at = now() WHERE id = $2', [

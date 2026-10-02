@@ -1,6 +1,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import * as Y from 'yjs';
 import { pool } from '../src/db.js';
+import { setStoreRetryDelays } from '../src/persistence.js';
 import {
   applySchema,
   connect,
@@ -88,6 +89,36 @@ it('keeps content across a collab server restart', async () => {
   const after = await connect(url, docId, token);
   expect(after.ok).toBe(true);
   expect(after.ydoc.getText('t').toString()).toBe('survives restart');
+});
+
+it('keeps the document in memory and retries until a failed store succeeds', async () => {
+  setStoreRetryDelays([100]);
+  const realQuery = pool.query.bind(pool);
+  let failures = 0;
+  vi.spyOn(pool, 'query').mockImplementation((sql, ...args) => {
+    if (String(sql).startsWith('UPDATE documents SET ydoc_state') && failures < 2) {
+      failures++;
+      return Promise.reject(new Error('database unavailable'));
+    }
+    return realQuery(sql, ...args);
+  });
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+  vi.spyOn(console, 'log').mockImplementation(() => {});
+
+  const client = await connect(url, docId, token);
+  client.ydoc.getText('t').insert(0, 'kept safe');
+  await waitFor(() => server.hocuspocus.documents.get(docId)?.getText('t').toString() === 'kept safe');
+  client.provider.destroy(); // last user leaves: the store runs now, and fails
+
+  // While stores fail, the document must not be dropped from memory.
+  await waitFor(() => failures >= 1);
+  expect(server.hocuspocus.documents.has(docId)).toBe(true);
+
+  await waitFor(async () => (await storedText(docId)) === 'kept safe', 3000);
+  expect(failures).toBe(2);
+  // Once stored, it's unloaded as usual.
+  await waitFor(() => !server.hocuspocus.documents.has(docId));
+  setStoreRetryDelays([1000, 2000, 5000, 10000, 30000]);
 });
 
 it('refuses to open a document it cannot load, and never overwrites what is stored', async () => {
