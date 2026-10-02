@@ -3,6 +3,7 @@ import { useAuth } from './auth/AuthContext.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import DocumentListPage from './pages/DocumentListPage.jsx';
 import DocumentPage from './pages/DocumentPage.jsx';
+import SessionExpiredDialog from './components/SessionExpiredDialog.jsx';
 
 // Hiding pages is a UX convenience, not security: the server checks every request.
 function RequireUser({ children }) {
@@ -12,31 +13,35 @@ function RequireUser({ children }) {
 }
 
 export default function App() {
-  const { user, loading } = useAuth();
+  const { user, loading, sessionExpired } = useAuth();
 
   return (
-    <Routes>
-      <Route
-        path="/login"
-        element={!loading && user ? <Navigate to="/" replace /> : <LoginPage />}
-      />
-      <Route
-        path="/"
-        element={
-          <RequireUser>
-            <DocumentListPage />
-          </RequireUser>
-        }
-      />
-      <Route
-        path="/doc/:id"
-        element={
-          <RequireUser>
-            <DocumentPage />
-          </RequireUser>
-        }
-      />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <>
+      <Routes>
+        <Route
+          path="/login"
+          element={!loading && user ? <Navigate to="/" replace /> : <LoginPage />}
+        />
+        <Route
+          path="/"
+          element={
+            <RequireUser>
+              <DocumentListPage />
+            </RequireUser>
+          }
+        />
+        <Route
+          path="/doc/:id"
+          element={
+            <RequireUser>
+              <DocumentPage />
+            </RequireUser>
+          }
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      {/* Over the current page, so nothing on it is lost while the user logs back in. */}
+      {user && sessionExpired && <SessionExpiredDialog />}
+    </>
   );
 }

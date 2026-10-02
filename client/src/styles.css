@@ -303,3 +303,29 @@ button.danger {
   gap: 8px;
   flex-shrink: 0;
 }
+
+.session-dialog form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.session-dialog label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+}
+
+.session-dialog input {
+  font: inherit;
+  padding: 8px;
+  border: 1px solid #c9ced6;
+  border-radius: 4px;
+}
+
+.session-dialog input[readonly] {
+  background: #f6f7f9;
+  color: #6b7280;
+}
