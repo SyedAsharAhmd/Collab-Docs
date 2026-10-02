@@ -16,7 +16,8 @@
   "scripts": {
     "dev": "node --watch --env-file=.env src/index.js",
     "start": "node src/index.js",
-    "test": "vitest run"
+    "test": "vitest run",
+    "seed:demo": "node --env-file=.env db/seedDemo.js"
   },
   "devDependencies": {
     "@hocuspocus/provider": "^4.7.0",
