@@ -67,8 +67,22 @@ loop lagged 344 ms at p99), so that row is limited by the test machine as much a
 - **Login handles only ~3 per second.** bcrypt at cost 12 is deliberately slow (~300 ms),
   and `bcryptjs` is pure JavaScript, so it runs on the same thread as every other request.
   Under 50 simultaneous logins, other work starved: one request's database connection
-  timed out. Two consequences:
-  - **No rate limiting:** anyone can try passwords as fast as the server allows, and a
-    handful of login requests per second slows the whole API for everyone.
-  - Possible fixes (not built yet): rate-limit `/login` per IP and per email; or use the
-    native `bcrypt` package, which hashes on background threads instead of the main one.
+  timed out. With no rate limiting, anyone could also try passwords as fast as the server
+  allowed.
+
+### After adding rate limiting
+
+`/login` and `/register` are now limited to 20 attempts per minute per IP, and `/login`
+to 5 attempts per 15 minutes per email (see `server/src/routes/auth.js`). Both checks
+run before bcrypt, so a rejected attempt costs almost nothing.
+
+| Scenario | Concurrent | Requests | Rejected with 429 | p50 | p95 |
+|---|---|---|---|---|---|
+| Login flood, wrong password | 50 | 32,018 | 32,013 | 11.6 ms | 25.9 ms |
+| GET /documents during the flood | 10 | 4,896 | 0 | 15.5 ms | 31.1 ms |
+
+Only 5 attempts reached bcrypt (the per-email limit), each answered 401. Users listing
+documents during the flood stayed fast, where before the fix 50 simultaneous logins made
+requests take 18 s. The load generator is a single client here; a flood spread over many
+IPs (a botnet) is beyond what an app-level limit can stop, and is a job for the hosting
+provider's DDoS protection.

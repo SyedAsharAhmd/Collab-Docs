@@ -18,6 +18,7 @@ const api = await startServer({
 async function run(scenario, concurrency, request) {
   const latencies = [];
   let errors = 0;
+  let limited = 0; // 429 Too Many Requests: rejected on purpose, not a failure
   const end = Date.now() + DURATION_MS;
   await Promise.all(
     Array.from({ length: concurrency }, async () => {
@@ -26,7 +27,8 @@ async function run(scenario, concurrency, request) {
         try {
           const res = await request();
           await res.arrayBuffer();
-          if (!res.ok) errors++;
+          if (res.status === 429) limited++;
+          else if (!res.ok) errors++;
         } catch {
           errors++;
         }
@@ -42,6 +44,7 @@ async function run(scenario, concurrency, request) {
     'p50 ms': ms(percentile(latencies, 50)),
     'p95 ms': ms(percentile(latencies, 95)),
     'p99 ms': ms(percentile(latencies, 99)),
+    'rate-limited (429)': limited,
     errors,
   };
 }
@@ -67,20 +70,24 @@ try {
       ),
     );
   }
-  for (const concurrency of [1, 10, 50]) {
-    console.log(`POST /login with ${concurrency} concurrent users…`);
-    results.push(
-      await measureServer(api, () =>
-        run('POST /login (bcrypt)', concurrency, () =>
-          fetch(`${BASE}/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password: PASSWORD }),
-          }),
-        ),
-      ),
-    );
-  }
+  // A login flood from one machine, while 10 other users keep listing documents.
+  // Before rate limiting, the flood's bcrypt work starved everything else.
+  console.log('POST /login flood (50 concurrent) while 10 users list documents…');
+  const loginRequest = () =>
+    fetch(`${BASE}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: 'wrong-guess' }),
+    });
+  const during = await measureServer(api, async () => {
+    const [flood, listing] = await Promise.all([
+      run('POST /login flood (wrong password)', 50, loginRequest),
+      run('GET /documents during the flood', 10, () => fetch(`${BASE}/documents`, { headers: auth })),
+    ]);
+    return { flood, listing };
+  });
+  const { flood, listing, ...serverStats } = during;
+  results.push({ ...flood, ...serverStats }, { ...listing, ...serverStats });
   console.table(results);
   if (api.errorLines.length) console.log(`Server logged ${api.errorLines.length} error line(s), e.g.:`, api.errorLines.slice(0, 3));
 } finally {
