@@ -7,9 +7,11 @@
     "node": ">=22"
   },
   "scripts": {
-    "test": "playwright test"
+    "test": "playwright test",
+    "demo:gif": "node demo/record-gif.js"
   },
   "devDependencies": {
-    "@playwright/test": "^1.63.0"
+    "@playwright/test": "^1.63.0",
+    "gifenc": "^1.0.3"
   }
 }
