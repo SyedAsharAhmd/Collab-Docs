@@ -31,6 +31,10 @@ services:
       # The client's public URL, e.g. https://collab-docs-client.onrender.com
       - key: CLIENT_ORIGIN
         sync: false
+      # Proxies between the internet and the API, so rate limiting sees each client's
+      # real IP. Too high lets clients fake their IP; too low makes everyone share one.
+      - key: TRUST_PROXY_HOPS
+        value: "3"
 
   - name: collab-docs-collab
     type: web
