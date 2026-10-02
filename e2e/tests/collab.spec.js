@@ -79,6 +79,16 @@ test('removing a collaborator shows them "Access removed" right away', async ({}
   await expect(guestPage.getByText('Access removed')).toBeVisible();
 });
 
+test('deleting a document tells everyone who has it open', async ({}, testInfo) => {
+  const { ownerPage, guestPage } = await ownerAndGuest(testInfo, 'editor');
+
+  await ownerPage.getByRole('link', { name: '← Documents' }).click();
+  ownerPage.once('dialog', (dialog) => dialog.accept()); // the "Delete …?" confirm
+  await ownerPage.getByRole('button', { name: 'Delete' }).click();
+
+  await expect(guestPage.getByText('Document no longer exists')).toBeVisible();
+});
+
 test('an expired session sends the user back to the login page', async ({ page }) => {
   const expired = signToken({ sub: '00000000-0000-4000-8000-000000000000', exp: Math.floor(Date.now() / 1000) - 60 });
   await page.goto('/login');
