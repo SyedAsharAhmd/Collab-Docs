@@ -43,7 +43,8 @@ services:
     region: frankfurt
     rootDir: collab
     buildCommand: npm ci
-    startCommand: node src/index.js
+    # Creates the public demo users and welcome document if missing (never blocks start).
+    startCommand: node db/seedDemo.js && node src/index.js
     envVars:
       - key: DATABASE_URL
         fromDatabase:
