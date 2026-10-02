@@ -12,8 +12,16 @@ if (!process.env.DATABASE_URL) {
 export const applySchema = async () =>
   pool.query(await readFile(new URL('../../server/db/schema.sql', import.meta.url), 'utf8'));
 
-export async function startServer() {
-  const server = createServer({ port: 0, quiet: true, stopOnSignals: false });
+export async function startServer({ port = 0 } = {}) {
+  const server = createServer({ port, quiet: true, stopOnSignals: false });
+  // destroy() leaves the raw TCP sockets open, because in a test the process doesn't
+  // exit. killSockets() drops them, which is what a real process exit does.
+  const sockets = new Set();
+  server.httpServer.on('connection', (socket) => {
+    sockets.add(socket);
+    socket.on('close', () => sockets.delete(socket));
+  });
+  server.killSockets = () => sockets.forEach((socket) => socket.destroy());
   await server.listen();
   return { server, url: `ws://127.0.0.1:${server.address.port}` };
 }
