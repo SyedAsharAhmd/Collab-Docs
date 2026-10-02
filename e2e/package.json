@@ -1,0 +1,15 @@
+{
+  "name": "e2e",
+  "private": true,
+  "type": "module",
+  "description": "Playwright browser tests: real users in real browsers against the full stack",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0"
+  }
+}
