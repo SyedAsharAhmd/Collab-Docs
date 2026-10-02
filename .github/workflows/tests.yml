@@ -83,7 +83,7 @@ jobs:
           cache-dependency-path: '*/package-lock.json'
       # Playwright starts the API, collab server, and client itself, so all four need installing.
       - run: npm ci --prefix server && npm ci --prefix collab && npm ci --prefix client && npm ci --prefix e2e
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install --with-deps chromium firefox webkit
         working-directory: e2e
       - run: npx playwright test
         working-directory: e2e

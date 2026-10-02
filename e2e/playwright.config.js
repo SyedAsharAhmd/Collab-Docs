@@ -20,18 +20,28 @@ export default defineConfig({
   // Tests share one database and register unique users, but run one at a time to keep
   // multi-user timing predictable.
   workers: 1,
-  timeout: 30_000,
+  // WebKit on Windows runs some multi-user tests close to 30 s; the time is not lost data
+  // (the provider sends every keystroke at once and flushes on page hide).
+  timeout: 60_000,
   use: {
     baseURL: CLIENT_ORIGIN,
     trace: 'retain-on-failure',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  // Chrome, Firefox, and WebKit (the engine behind Safari): editing and WebSockets
+  // are exactly where browsers differ.
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
+    { name: 'webkit', use: { ...devices['Desktop Safari'] } },
+  ],
   webServer: [
     {
       // Same start command as on Render: apply the schema, then start.
       command: 'node db/init.js && node src/index.js',
       cwd: '../server',
-      env: { ...serverEnv, PORT: String(API_PORT), CLIENT_ORIGIN },
+      // These tests sign up dozens of users from one IP within minutes; the rate limit
+      // has its own tests (server/test/rateLimit.test.js).
+      env: { ...serverEnv, PORT: String(API_PORT), CLIENT_ORIGIN, AUTH_RATE_LIMIT_PER_IP: '10000' },
       url: `http://localhost:${API_PORT}/api/me`, // answers 401 once it's up
       reuseExistingServer: false,
     },
