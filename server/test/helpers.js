@@ -7,6 +7,11 @@ if (!process.env.DATABASE_URL) {
   throw new Error('TEST_DATABASE_URL is not set. Add it to server/.env (see .env.example).');
 }
 
+// Creates the tables if they don't exist. Every test file must call this (directly or
+// through useTestServer): files run in any order, and CI starts from an empty database.
+export const applySchema = async () =>
+  pool.query(await readFile(new URL('../db/schema.sql', import.meta.url), 'utf8'));
+
 // Registers hooks that start the app on a random port and empty the tables before
 // every test. Returns `call`, which sends a JSON request and parses the response.
 export function useTestServer() {
@@ -14,7 +19,7 @@ export function useTestServer() {
   let base;
 
   beforeAll(async () => {
-    await pool.query(await readFile(new URL('../db/schema.sql', import.meta.url), 'utf8'));
+    await applySchema();
     // Tests register and log in far faster than any person; rate limiting has its own tests.
     const unlimited = { limit: Infinity, windowMs: 60_000 };
     server = createApp({ authLimits: { perIp: unlimited, perEmail: unlimited } }).listen(0);

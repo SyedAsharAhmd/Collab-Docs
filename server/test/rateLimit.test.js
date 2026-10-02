@@ -2,6 +2,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { createApp } from '../src/app.js';
 import { pool } from '../src/db.js';
 import { RateLimiter } from '../src/rateLimit.js';
+import { applySchema } from './helpers.js';
 
 describe('RateLimiter', () => {
   afterEach(() => vi.useRealTimers());
@@ -28,7 +29,10 @@ describe('login and register limits', () => {
   const password = 'password123';
   const stamp = Date.now();
 
-  beforeAll(() => pool.query("DELETE FROM users WHERE email LIKE 'ratelimit-%'"));
+  beforeAll(async () => {
+    await applySchema();
+    await pool.query("DELETE FROM users WHERE email LIKE 'ratelimit-%'");
+  });
   afterAll(async () => {
     servers.forEach((s) => s.close());
     await pool.query("DELETE FROM users WHERE email LIKE 'ratelimit-%'");
