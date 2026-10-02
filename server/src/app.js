@@ -1,5 +1,6 @@
 import express from 'express';
 import { cors } from './cors.js';
+import { isDatabaseUnavailable } from './db.js';
 import { authRouter } from './routes/auth.js';
 import { documentsRouter } from './routes/documents.js';
 
@@ -22,6 +23,10 @@ export function createApp({ clientOrigin = process.env.CLIENT_ORIGIN } = {}) {
     }
     if (err.type === 'entity.too.large') {
       return res.status(413).json({ error: 'Request body is too large' });
+    }
+    if (isDatabaseUnavailable(err)) {
+      console.error('Database unavailable:', err.message);
+      return res.status(503).json({ error: 'Service temporarily unavailable. Please try again.' });
     }
     // Log the real error on the server; the client only gets a generic message.
     console.error(err);
