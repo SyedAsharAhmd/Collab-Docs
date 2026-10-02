@@ -1,0 +1,20 @@
+{
+  "name": "loadtest",
+  "private": true,
+  "type": "module",
+  "description": "Local load tests for the REST API and the collab server (run against the test database)",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "rest": "node rest.js",
+    "collab": "node collab.js"
+  },
+  "dependencies": {
+    "@hocuspocus/provider": "^4.7.0",
+    "jsonwebtoken": "^9.0.3",
+    "pg": "^8.23.1",
+    "y-protocols": "^1.0.7",
+    "yjs": "^13.6.33"
+  }
+}
