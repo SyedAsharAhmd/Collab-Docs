@@ -15,7 +15,9 @@ export function useTestServer() {
 
   beforeAll(async () => {
     await pool.query(await readFile(new URL('../db/schema.sql', import.meta.url), 'utf8'));
-    server = createApp().listen(0);
+    // Tests register and log in far faster than any person; rate limiting has its own tests.
+    const unlimited = { limit: Infinity, windowMs: 60_000 };
+    server = createApp({ authLimits: { perIp: unlimited, perEmail: unlimited } }).listen(0);
     base = `http://127.0.0.1:${server.address().port}/api`;
   });
 
