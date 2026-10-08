@@ -61,12 +61,20 @@ button {
   opacity: 0.6;
 }
 
+/* A text link that is a button. The padding gives it a fingertip-sized tap area without
+   a fixed height, which would leave a gap of empty space around the words. */
 .link {
-  margin-top: 12px;
+  margin-top: 4px;
   background: none;
   border: none;
   color: #2563eb;
-  padding: 0;
+  padding: 8px 0;
+}
+
+/* The browser's default <h1> is 2em with large margins: too big inside a small card. */
+.auth-card h1 {
+  margin: 8px 0 16px;
+  font-size: 1.5rem;
 }
 
 .error {
@@ -510,7 +518,7 @@ button.danger:hover:not(:disabled) {
 
 /* Touch screens: fingers need bigger targets than a mouse pointer does. */
 @media (pointer: coarse) {
-  button,
+  button:not(.link),
   select,
   .auth-card input,
   .share-form input,
