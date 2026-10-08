@@ -104,7 +104,7 @@ export default function ShareDialog({ docId, onClose }) {
         </ul>
       )}
 
-      <button type="button" onClick={() => dialogRef.current?.close()}>Done</button>
+      <button type="button" className="secondary" onClick={() => dialogRef.current?.close()}>Done</button>
     </dialog>
   );
 }

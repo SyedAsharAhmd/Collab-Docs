@@ -32,6 +32,7 @@ export default function LoginPage() {
 
   return (
     <main className="auth-card">
+      <p className="auth-brand">Collab Docs</p>
       <h1>{isRegister ? 'Create an account' : 'Log in'}</h1>
       <form onSubmit={handleSubmit}>
         {isRegister && (

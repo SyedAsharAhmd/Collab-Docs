@@ -92,7 +92,7 @@ function DocumentEditor({ doc, onAccessChanged }) {
         <Link to="/">← Documents</Link>
         <TitleInput doc={doc} disabled={!canEdit} />
         {!canEdit && <span className="badge">View only</span>}
-        <span className="muted">{STATUS_TEXT[status]}</span>
+        <span className={`status status-${status}`} role="status">{STATUS_TEXT[status]}</span>
         {isOwner && (
           <button type="button" className="primary" onClick={() => setSharing(true)}>
             Share

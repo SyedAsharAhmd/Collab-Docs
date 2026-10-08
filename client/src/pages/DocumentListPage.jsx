@@ -53,8 +53,13 @@ export default function DocumentListPage() {
           </button>
         </div>
         {error && <p className="error" role="alert">{error}</p>}
-        {documents === null && !error && <p>Loading…</p>}
-        {documents?.length === 0 && <p className="muted">No documents yet. Create one to get started.</p>}
+        {documents === null && !error && <p className="muted">Loading…</p>}
+        {documents?.length === 0 && (
+          <div className="empty">
+            <p><strong>No documents yet</strong></p>
+            <p className="muted">Create one to get started.</p>
+          </div>
+        )}
         {documents?.length > 0 && (
           <ul className="doc-list">
             {documents.map((doc) => (

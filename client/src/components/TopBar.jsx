@@ -9,7 +9,7 @@ export default function TopBar() {
       <Link to="/" className="brand">Collab Docs</Link>
       <span>
         {user.name} <span className="topbar-email">({user.email})</span>
-        <button type="button" onClick={logout}>Log out</button>
+        <button type="button" className="secondary" onClick={logout}>Log out</button>
       </span>
     </header>
   );
