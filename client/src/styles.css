@@ -524,6 +524,9 @@ button.danger:hover:not(:disabled) {
   .share-form input,
   .session-dialog input {
     min-height: 44px;
+    /* Count the padding and border inside the 44px. Inputs default to content-box, which
+       made these 62px tall: the 44px was only the space inside them. */
+    box-sizing: border-box;
   }
 
   .toolbar button {
