@@ -19,7 +19,9 @@ button {
 }
 
 .auth-card {
-  max-width: 360px;
+  /* border-box: the padding is part of the width, so the card never exceeds the screen. */
+  box-sizing: border-box;
+  width: min(424px, calc(100% - 32px));
   margin: 12vh auto;
   padding: 32px;
   background: #fff;
@@ -248,6 +250,8 @@ button.danger {
 }
 
 .share-dialog {
+  /* border-box: with the default content-box, the padding pushed it past the screen edge. */
+  box-sizing: border-box;
   width: min(480px, calc(100vw - 32px));
   padding: 24px;
   border: none;
@@ -328,4 +332,93 @@ button.danger {
 .session-dialog input[readonly] {
   background: #f6f7f9;
   color: #6b7280;
+}
+
+/* Long titles, emails, and pasted text wrap instead of stretching the page. */
+.doc-list a,
+.collaborators li,
+.editor .tiptap {
+  overflow-wrap: anywhere;
+}
+
+/* Phones and small windows. */
+@media (max-width: 600px) {
+  .auth-card {
+    margin: 6vh auto;
+    padding: 24px;
+  }
+
+  .topbar {
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    padding: 10px 12px;
+  }
+
+  /* The name is enough on a phone; the full email would wrap the top bar. */
+  .topbar-email {
+    display: none;
+  }
+
+  .page {
+    margin: 16px auto;
+    padding: 0 12px;
+  }
+
+  .editor .tiptap {
+    padding: 16px;
+  }
+
+  .doc-header {
+    gap: 8px;
+  }
+
+  /* Back link, then the title on its own line, then badge, status, and Share. */
+  .title-input {
+    flex-basis: 100%;
+    min-width: 0;
+  }
+
+  .doc-list li {
+    flex-wrap: wrap;
+    padding: 12px;
+  }
+
+  .doc-list a {
+    flex-basis: 100%;
+  }
+
+  .doc-list li .muted {
+    flex: 1;
+  }
+
+  .share-dialog {
+    padding: 16px;
+  }
+
+  .share-form {
+    flex-wrap: wrap;
+  }
+
+  .share-form input {
+    flex-basis: 100%;
+  }
+
+  .collaborators li {
+    flex-wrap: wrap;
+  }
+}
+
+/* Touch screens: fingers need bigger targets than a mouse pointer does. */
+@media (pointer: coarse) {
+  button,
+  select,
+  .auth-card input,
+  .share-form input,
+  .session-dialog input {
+    min-height: 44px;
+  }
+
+  .toolbar button {
+    min-width: 44px;
+  }
 }
