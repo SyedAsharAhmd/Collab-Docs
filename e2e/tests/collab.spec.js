@@ -127,10 +127,87 @@ test('a session that expires mid-edit asks to log in again and keeps the offline
   await expect(dialog).toHaveCount(0);
   await expectLive(page);
 
-  // Proof the offline text reached the server: a fresh load shows it.
+  // "Live" was showing the whole time (the socket never closed), so it cannot tell us the
+  // offline edits have been delivered yet. A second window of the same user can: the text
+  // appearing there proves it reached the server. Reloading before that would throw away
+  // edits that are still on their way.
+  const watcher = await page.context().newPage();
+  await watcher.goto(page.url());
+  await expectLive(watcher);
+  await expect(editor(watcher)).toContainText('Typed before. Typed offline.', { timeout: 15_000 });
+  await watcher.close();
+
+  // Proof the offline text is stored: a fresh load shows it.
   await page.reload();
   await expectLive(page);
   await expect(editor(page)).toContainText('Typed before. Typed offline.');
+});
+
+test('anyone with the link can view or edit without logging in, at the level the owner chooses', async ({ browser }, testInfo) => {
+  const ownerPage = await testInfo.owner.newPage();
+  await signUp(ownerPage, 'Owner');
+  const docUrl = await createDocument(ownerPage);
+  await editor(ownerPage).click();
+  await ownerPage.keyboard.type('Public notes. ');
+
+  // access: 'none' | 'viewer' | 'editor'
+  const setLinkAccess = async (access) => {
+    await ownerPage.getByRole('button', { name: 'Share', exact: true }).click();
+    const dialog = ownerPage.getByRole('dialog');
+    const select = dialog.getByLabel('Anyone with the link');
+    await select.selectOption(access);
+    // The select only changes once the server has confirmed, so wait for it.
+    await expect(select).toHaveValue(access);
+    if (access !== 'none') await expect(dialog.getByLabel('Link to this document')).toHaveValue(docUrl);
+    await dialog.getByRole('button', { name: 'Done' }).click();
+  };
+
+  // With the link off (the default), a visitor who isn't logged in finds nothing.
+  const visitorContext = await browser.newContext(); // a brand-new browser: no login
+  const visitor = await visitorContext.newPage();
+  await visitor.goto(docUrl);
+  await expect(visitor.getByText('Document not found.')).toBeVisible();
+
+  // View only: sees it live, cannot edit.
+  await setLinkAccess('viewer');
+  await visitor.reload();
+  await expect(visitor.getByText('View only')).toBeVisible();
+  await expectLive(visitor);
+  await expect(editor(visitor)).toContainText('Public notes.');
+  await expect(editor(visitor)).toHaveAttribute('contenteditable', 'false');
+  await expect(visitor.getByRole('link', { name: 'Log in' })).toBeVisible();
+
+  await editor(ownerPage).click();
+  await ownerPage.keyboard.press('Control+End');
+  await ownerPage.keyboard.type('More text. ');
+  await expect(editor(visitor)).toContainText('Public notes. More text.');
+
+  // Raised to edit: the visitor's page reconnects by itself and becomes editable.
+  await setLinkAccess('editor');
+  await expect(visitor.getByText('Editing via link')).toBeVisible();
+  await expectLive(visitor);
+  await expect(editor(visitor)).toHaveAttribute('contenteditable', 'true');
+  await expect(visitor.getByLabel('Document title')).toBeDisabled(); // link editors cannot rename
+  await editor(visitor).click();
+  await visitor.keyboard.press('Control+End');
+  await visitor.keyboard.type('Visitor was here.');
+  await expect(editor(ownerPage)).toContainText('Visitor was here.');
+
+  // Lowered to view only: editing is taken away at once.
+  await setLinkAccess('viewer');
+  await expect(visitor.getByText('View only')).toBeVisible();
+  await expect(editor(visitor)).toHaveAttribute('contenteditable', 'false');
+  // Wait until the visitor's new connection is up. If the owner switches the link off while
+  // it is still logging in, the server (rightly) refuses it, and the page says "no longer
+  // have access" instead of "Access removed". Both are correct; this test checks the usual path.
+  await expectLive(visitor);
+
+  // Switched off: the visitor is cut off.
+  await setLinkAccess('none');
+  await expect(visitor.getByText('Access removed')).toBeVisible();
+  await visitor.reload();
+  await expect(visitor.getByText('Document not found.')).toBeVisible();
+  await visitorContext.close();
 });
 
 test('an expired session sends the user back to the login page', async ({ page }) => {
