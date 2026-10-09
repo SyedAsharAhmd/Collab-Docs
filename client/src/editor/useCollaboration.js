@@ -29,6 +29,9 @@ export function useCollaboration(docId, onAccessChanged) {
   const providerRef = useRef(null);
   // Set when the server rejected our token, so we reconnect once the user logs back in.
   const waitingForLogin = useRef(false);
+  // Set when the server closed our connection because access changed. The page then
+  // reloads, which remounts this hook with a fresh value.
+  const accessChanged = useRef(false);
 
   useEffect(() => {
     onAccessChangedRef.current = onAccessChanged;
@@ -46,18 +49,28 @@ export function useCollaboration(docId, onAccessChanged) {
       token: () => tokenStore.get(),
       onStatus: ({ status }) => setStatus(status),
       onAuthenticationFailed: ({ reason }) => {
-        if (reason === 'invalid-token') {
-          // Not a dead end: keep the Y.Doc (it may hold edits typed offline) and ask the
-          // user to log in again over this page.
-          waitingForLogin.current = true;
-          expireSession();
-        } else {
-          setDeniedReason(reason);
-        }
+        // The server already told us our access changed and the page is reloading to find
+        // out what it is now. A reconnect attempt that was refused in the meantime must not
+        // replace the page with a vaguer message.
+        if (accessChanged.current) return;
+        if (reason !== 'invalid-token') return setDeniedReason(reason);
+        // Already asked to log in again: this is only another reconnect attempt that
+        // happened before they did.
+        if (waitingForLogin.current) return;
+        // No token at all: a visitor who was never logged in, e.g. when the owner switched
+        // link sharing off while they were watching. There is no session to renew.
+        if (!tokenStore.get()) return setDeniedReason('permission-denied');
+        // Not a dead end: keep the Y.Doc (it may hold edits typed offline) and ask the
+        // user to log in again over this page.
+        waitingForLogin.current = true;
+        expireSession();
       },
       onClose: ({ event }) => {
         if (event?.reason === DOCUMENT_DELETED) setDeniedReason(DOCUMENT_DELETED);
-        else if (event?.reason === ACCESS_CHANGED) onAccessChangedRef.current?.();
+        else if (event?.reason === ACCESS_CHANGED) {
+          accessChanged.current = true;
+          onAccessChangedRef.current?.();
+        }
       },
     });
     providerRef.current = provider;

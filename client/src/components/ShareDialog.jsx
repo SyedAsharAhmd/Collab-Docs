@@ -3,15 +3,19 @@ import { api } from '../api.js';
 
 // Owner-only. Hiding it from others is just UX: every sharing endpoint checks for the
 // owner role on the server.
-export default function ShareDialog({ docId, onClose }) {
+export default function ShareDialog({ docId, linkAccess, onLinkAccessChange, onClose }) {
   const dialogRef = useRef(null);
   const [collaborators, setCollaborators] = useState(null);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('editor');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const path = `/documents/${docId}/permissions`;
+  // The address of this document's page. It is the document's random id, so it can't be
+  // guessed: it works like a password for whoever has it.
+  const link = `${window.location.origin}/doc/${docId}`;
 
   const load = useCallback(
     () =>
@@ -51,6 +55,23 @@ export default function ShareDialog({ docId, onClose }) {
   const changeRole = (person, newRole) =>
     run(() => api(path, { method: 'POST', body: { email: person.email, role: newRole } }));
   const remove = (person) => run(() => api(`${path}/${person.user_id}`, { method: 'DELETE' }));
+
+  // The select only changes once the server has confirmed, so it always shows what is stored.
+  const changeLinkAccess = (access) =>
+    run(async () => {
+      const result = await api(`/documents/${docId}/link-access`, { method: 'PUT', body: { access } });
+      onLinkAccessChange(result.link_access);
+    });
+
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setError('Could not copy automatically. Select the link and copy it.');
+    }
+  }
 
   return (
     <dialog ref={dialogRef} className="share-dialog" onClose={onClose}>
@@ -103,6 +124,38 @@ export default function ShareDialog({ docId, onClose }) {
           ))}
         </ul>
       )}
+
+      <section className="link-access">
+        <div className="link-toggle">
+          <label htmlFor="link-access">Anyone with the link</label>
+          <select
+            id="link-access"
+            value={linkAccess}
+            disabled={busy}
+            onChange={(e) => changeLinkAccess(e.target.value)}
+          >
+            <option value="none">Cannot open it</option>
+            <option value="viewer">Can view</option>
+            <option value="editor">Can edit</option>
+          </select>
+        </div>
+        {linkAccess !== 'none' && (
+          <>
+            <div className="link-row">
+              <input readOnly aria-label="Link to this document" value={link} onFocus={(e) => e.target.select()} />
+              <button type="button" className="secondary" onClick={copyLink}>
+                {copied ? 'Copied' : 'Copy link'}
+              </button>
+            </div>
+            <p className="muted">
+              {linkAccess === 'viewer'
+                ? "They can read it live but not edit it, and they don't need an account. "
+                : "They can edit it live without an account, and anything they type or delete is saved. There is no version history to undo changes. "}
+              Anyone who has the link can pass it on.
+            </p>
+          </>
+        )}
+      </section>
 
       <button type="button" className="secondary" onClick={() => dialogRef.current?.close()}>Done</button>
     </dialog>

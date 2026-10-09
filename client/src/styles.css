@@ -442,6 +442,41 @@ button.danger:hover:not(:disabled) {
   color: #2563eb;
 }
 
+.link-access {
+  margin: 0 0 16px;
+  padding-top: 12px;
+  border-top: 1px solid #e3e6ea;
+}
+
+.link-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-weight: 500;
+}
+
+.link-row {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.link-row input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 14px;
+  padding: 6px 8px;
+  border: 1px solid #c9ced6;
+  border-radius: 4px;
+  background: #f6f7f9;
+}
+
+.link-access .muted {
+  margin: 0;
+}
+
 /* Long titles, emails, and pasted text wrap instead of stretching the page. */
 .doc-list a,
 .collaborators li,

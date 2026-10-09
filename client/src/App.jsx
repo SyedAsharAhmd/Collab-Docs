@@ -30,14 +30,9 @@ export default function App() {
             </RequireUser>
           }
         />
-        <Route
-          path="/doc/:id"
-          element={
-            <RequireUser>
-              <DocumentPage />
-            </RequireUser>
-          }
-        />
+        {/* Not behind RequireUser: a document with link sharing on is open to visitors who
+            aren't logged in. The servers decide who gets in; anyone else sees "not found". */}
+        <Route path="/doc/:id" element={<DocumentPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       {/* Over the current page, so nothing on it is lost while the user logs back in. */}
