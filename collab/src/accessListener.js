@@ -58,16 +58,21 @@ export async function listenForAccessChanges(hocuspocus) {
 }
 
 function handleNotification(hocuspocus, payload) {
-  let docId, userId;
+  let docId, userId, linkOnly;
   try {
-    ({ docId, userId } = JSON.parse(payload));
+    ({ docId, userId, linkOnly } = JSON.parse(payload));
   } catch {
     return console.error('Ignoring malformed access notification:', payload);
   }
   const document = hocuspocus.documents.get(docId);
   if (!document) return; // nobody has it open
 
-  if (userId) {
+  if (linkOnly) {
+    // The owner changed what the link allows: close only the connections whose role comes
+    // from the link. They reconnect at the new level, or are refused if it is off.
+    // Collaborators with a role of their own stay connected.
+    closeConnections(hocuspocus, (connection) => connection.context?.viaLink === true, ACCESS_CHANGED, document);
+  } else if (userId) {
     closeConnections(hocuspocus, (connection) => connection.context?.userId === userId, ACCESS_CHANGED, document);
   } else {
     closeConnections(hocuspocus, () => true, DOCUMENT_DELETED, document);
