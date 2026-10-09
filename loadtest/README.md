@@ -86,3 +86,27 @@ documents during the flood stayed fast, where before the fix 50 simultaneous log
 requests take 18 s. The load generator is a single client here; a flood spread over many
 IPs (a botnet) is beyond what an app-level limit can stop, and is a job for the hosting
 provider's DDoS protection.
+
+## Link sharing: visitors who are not logged in
+
+`npm run anon` (results from the same laptop, 2026-10-09). Visitors are anonymous
+WebSocket connections with no token, typing or watching through "anyone with the link".
+
+| Scenario | Connections | Edit reaches a watcher (p50 / p95) | All copies identical | Server CPU |
+|---|---|---|---|---|
+| 5 editors typing, 10 visitors watching one document | 15 | 4 ms / 7 ms | yes | 7% |
+| 5 editors typing, 50 visitors watching | 55 | 7 ms / 17 ms | yes | 10% |
+| 5 editors typing, 100 visitors watching | 105 | 10 ms / 21 ms | yes | 10% |
+| 100 documents, 5 visitors typing in each (link set to edit) | 500 | not measured | yes, 100 of 100 | 47% |
+
+Visitors cost the server about the same as logged-in users, which is expected: the only
+difference is one extra permission query when they connect.
+
+**The cap:** at most 100 visitors can be connected through the link to one document at a
+time (`MAX_LINK_VIEWERS`). With 120 trying, 100 got in and 20 were refused with
+`too-many-viewers`, and a logged-in collaborator could still open the document.
+
+Every refused connection is logged by Hocuspocus as `[onAuthenticate] <reason>`, so someone
+without an account can add log lines just by being refused. The server handled this
+without trouble, but if it became a nuisance, the fix would be to rate limit by IP at the
+hosting layer.

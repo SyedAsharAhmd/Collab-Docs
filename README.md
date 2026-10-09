@@ -36,6 +36,7 @@ You can also register your own account and share documents by email.
 - Keep typing while offline; changes sync when the connection returns
 - Editor and viewer roles, enforced on the server
 - Removing someone's access takes effect immediately, even while they have the document open
+- "Anyone with the link" sharing: the owner can let people without an account view or edit a document
 
 ## Architecture
 
@@ -73,6 +74,10 @@ flowchart LR
   are never left without an owner.
 - **Two servers.** Short HTTP requests and long-lived live connections are different
   workloads, so each runs, restarts, and scales on its own. Both share one database.
+- **Link sharing.** The link is the document's random ID, so it works like a password: whoever
+  has it gets the level the owner chose (view or edit), without an account. They can never
+  rename, share, or delete, the number of visitors per document is capped, and changing the
+  setting disconnects them immediately.
 - **Documents you can't access return "not found".** This way nobody can discover
   whether a document exists by guessing its address.
 
@@ -88,9 +93,9 @@ flowchart LR
 
 | Suite | Tool | Tests |
 |---|---|---|
-| API | Vitest | 60 |
-| Collab server | Vitest | 29 |
-| Browser (Chrome, Firefox, WebKit) | Playwright | 21 |
+| API | Vitest | 101 |
+| Collab server | Vitest | 73 |
+| Browser (Chrome, Firefox, WebKit) | Playwright | 24 |
 
 The tests cover accounts, permissions, live sync between several users, offline edits,
 saving and reloading, server restarts, and what happens when the database is down. All
@@ -103,6 +108,7 @@ suites run in GitHub Actions on every push. Local load tests are in [loadtest/](
 - SQL queries are parameterized; the API only accepts requests from the app's own site
 - Error messages to users are generic; details stay in the server logs
 - Login attempts are rate limited
+- Link visitors are limited to what the owner allows, and can never rename, share, or delete
 
 ## Run it locally
 
@@ -152,4 +158,5 @@ never committed.
 - One instance of each server
 - Sessions last an hour; after that you log in again
 - No password reset, email verification, or account deletion
-- No version history, other users' cursors, or comments
+- No version history, other users' cursors, or comments. With an edit link, anyone who has the
+  link can erase a document and there is no way to undo it

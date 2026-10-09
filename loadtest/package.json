@@ -8,7 +8,8 @@
   },
   "scripts": {
     "rest": "node rest.js",
-    "collab": "node collab.js"
+    "collab": "node collab.js",
+    "anon": "node anon.js"
   },
   "dependencies": {
     "@hocuspocus/provider": "^4.7.0",
