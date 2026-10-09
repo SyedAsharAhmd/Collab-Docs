@@ -34,8 +34,9 @@ export function useTestServer() {
     await pool.end();
   });
 
-  return async function call(method, path, { body, token } = {}) {
-    const headers = { 'Content-Type': 'application/json' };
+  // `headers` adds raw headers (e.g. a malformed Authorization value) beyond the Bearer token.
+  return async function call(method, path, { body, token, headers: extraHeaders } = {}) {
+    const headers = { 'Content-Type': 'application/json', ...extraHeaders };
     if (token) headers.Authorization = `Bearer ${token}`;
     const res = await fetch(base + path, {
       method,

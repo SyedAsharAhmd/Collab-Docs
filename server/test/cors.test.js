@@ -23,6 +23,11 @@ it('allows the client origin, including the Authorization header', async () => {
   expect(res.status).toBe(204);
   expect(res.headers.get('access-control-allow-origin')).toBe(CLIENT);
   expect(res.headers.get('access-control-allow-headers')).toMatch(/Authorization/);
+  // Every method the API uses must be listed, or the browser blocks it before it is sent.
+  // (PUT was once missing, which broke the link sharing switch on the deployed site.)
+  expect(res.headers.get('access-control-allow-methods').split(', ')).toEqual(
+    expect.arrayContaining(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']),
+  );
 });
 
 it('gives any other origin no CORS headers, so the browser blocks it', async () => {
