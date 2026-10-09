@@ -25,6 +25,14 @@ export function validateRegistration({ email, password, name }) {
   return null;
 }
 
+// What "anyone with the link" may do: nothing (link off), view, or edit. Never 'owner':
+// sharing, deleting, and changing this setting always need a real owner role.
+export const LINK_ACCESS_VALUES = ['none', 'viewer', 'editor'];
+
+export function validateLinkAccess(access) {
+  return LINK_ACCESS_VALUES.includes(access) ? null : `Link access must be one of: ${LINK_ACCESS_VALUES.join(', ')}`;
+}
+
 // Roles an owner can give. 'owner' is only set when a document is created.
 export const SHAREABLE_ROLES = ['editor', 'viewer'];
 

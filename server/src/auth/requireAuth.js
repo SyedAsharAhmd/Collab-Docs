@@ -17,3 +17,14 @@ export function requireAuth(req, res, next) {
   }
   next();
 }
+
+// Like requireAuth, but lets a request with no Authorization header through as an
+// anonymous visitor (req.userId stays undefined). Only for routes where the data
+// itself may be public.
+//
+// A token that IS sent but is invalid or expired is still a 401: otherwise a logged-in
+// user whose session expired would silently become an anonymous visitor.
+export function optionalAuth(req, res, next) {
+  if (!req.get('Authorization')) return next();
+  return requireAuth(req, res, next);
+}

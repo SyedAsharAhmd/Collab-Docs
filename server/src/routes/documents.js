@@ -1,14 +1,23 @@
 import { Router } from 'express';
 import { pool } from '../db.js';
-import { requireAuth } from '../auth/requireAuth.js';
+import { optionalAuth, requireAuth } from '../auth/requireAuth.js';
 import { NOT_FOUND, requireDocumentRole } from '../auth/documentAccess.js';
-import { notifyAccessChanged } from '../accessEvents.js';
-import { validateTitle } from '../validation.js';
+import { notifyAccessChanged, notifyLinkAccessChanged } from '../accessEvents.js';
+import { validateLinkAccess, validateTitle } from '../validation.js';
 import { sharingRouter } from './sharing.js';
 
 const DEFAULT_TITLE = 'Untitled document';
 
 export const documentsRouter = Router();
+
+// The ONE route open to visitors who aren't logged in: reading a document's details.
+// requireDocumentRole still decides: an anonymous visitor only gets in when the owner
+// switched link sharing on, and then only as a viewer. It sits above requireAuth on
+// purpose: everything below it, and any route added later, requires a login by default.
+// Metadata only: the content itself arrives over the collab WebSocket.
+documentsRouter.get('/:id', optionalAuth, requireDocumentRole('viewer'), (req, res) => {
+  res.json({ document: req.document });
+});
 
 documentsRouter.use(requireAuth);
 documentsRouter.use('/:id/permissions', sharingRouter);
@@ -56,12 +65,40 @@ documentsRouter.post('/', async (req, res) => {
   }
 });
 
-// Metadata only. The content itself arrives over the collab WebSocket.
-documentsRouter.get('/:id', requireDocumentRole('viewer'), (req, res) => {
-  res.json({ document: req.document });
+// Owner only: choose what anyone with the link may do: nothing, view, or edit.
+documentsRouter.put('/:id/link-access', requireDocumentRole('owner'), async (req, res) => {
+  const access = req.body?.access;
+  const error = validateLinkAccess(access);
+  if (error) return res.status(400).json({ error });
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    // FOR UPDATE locks the row while we read the old value, so two quick toggles queue up
+    // instead of both seeing the same old value and both sending (or skipping) the notice.
+    const { rows } = await client.query('SELECT link_access FROM documents WHERE id = $1 FOR UPDATE', [req.document.id]);
+    if (!rows[0]) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: NOT_FOUND });
+    }
+    await client.query('UPDATE documents SET link_access = $1 WHERE id = $2', [access, req.document.id]);
+    // Any change cuts the connections that came in through the link, so they reconnect at
+    // the new level (or are refused). Otherwise a visitor could keep editing after the
+    // owner lowered the link to view only. Nothing is sent if the value did not change.
+    if (rows[0].link_access !== access) await notifyLinkAccessChanged(client, req.document.id);
+    await client.query('COMMIT');
+    res.json({ link_access: access });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 });
 
 documentsRouter.patch('/:id', requireDocumentRole('editor'), async (req, res) => {
+  // Someone who is editing through the link may change the content, not the document's name.
+  if (req.document.via_link) return res.status(403).json({ error: 'You do not have permission to do that' });
   const title = req.body?.title;
   const error = validateTitle(title);
   if (error) return res.status(400).json({ error });

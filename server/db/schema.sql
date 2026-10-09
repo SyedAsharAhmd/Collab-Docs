@@ -30,3 +30,9 @@ CREATE INDEX IF NOT EXISTS permissions_user_id_idx ON permissions (user_id);
 
 -- Cleanup: M2 kept editor JSON here temporarily. Content now lives in ydoc_state.
 ALTER TABLE documents DROP COLUMN IF EXISTS content;
+
+-- Link sharing: anyone with the document's link can open it without logging in, as a
+-- 'viewer' (read only) or an 'editor'. 'none' (the default) turns the link off. The owner
+-- chooses. One statement, so applying the schema twice, or from two servers at once, is safe.
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS link_access text NOT NULL DEFAULT 'none'
+  CHECK (link_access IN ('none', 'viewer', 'editor'));

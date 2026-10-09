@@ -11,7 +11,7 @@ export function cors(allowedOrigin) {
     if (allowedOrigin && origin === allowedOrigin) {
       res.set('Access-Control-Allow-Origin', origin);
       res.set('Access-Control-Allow-Headers', 'Authorization, Content-Type');
-      res.set('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE');
+      res.set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE');
       res.set('Access-Control-Max-Age', '600');
     }
     // Preflight: the browser asks before sending the real request. Without the headers
